@@ -17,16 +17,79 @@ import android.app.DatePickerDialog
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.filled.DateRange
+//import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+//import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
+//import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-
+import android.app.TimePickerDialog
+import android.graphics.Bitmap
+import android.util.Log
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
+//import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.*
+//import androidx.compose.material.icons.filled.AddCircle
+//import androidx.compose.material.icons.filled.Clear
+//import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import java.util.*
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+//import androidx.compose.material.icons.filled.Close
+//import androidx.compose.material.icons.filled.Done
+//import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import android.net.Uri
+//import androidx.compose.material.icons.filled.AccountBox
+import java.io.File
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.BitmapFactory
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
+//import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.*
+import android.graphics.Color.BLACK
+import android.graphics.Paint
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.text.font.FontWeight
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.ktx.Firebase
+import android.graphics.pdf.PdfDocument
+import android.os.Environment
+import java.io.FileOutputStream
+import android.content.Context
+import androidx.core.content.ContextCompat
 
 
 class MainActivity : ComponentActivity() {
@@ -34,6 +97,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PantallaFormulario()
+
         }
     }
 }
@@ -46,9 +110,7 @@ fun PantallaFormulario() {
     // Estados de los campos
     val calendar = Calendar.getInstance()
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
     val fecha = remember { mutableStateOf(dateFormat.format(calendar.time)) }
-
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
@@ -59,26 +121,95 @@ fun PantallaFormulario() {
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     )
-    val opcionesCliente = listOf("Comfandi") // puedes agregar más luego
-    var expanded by remember { mutableStateOf(false) }
-    val cliente = remember { mutableStateOf("") }
-    val ciudad = remember { mutableStateOf("") }
-    val sucursal = remember { mutableStateOf("") }
+
+    val todosLosClientes = listOf("Comfandi", "Virrey Solis", "Ingredium")
+    var expandedCliente by remember { mutableStateOf(false) }
+    var clienteSeleccionado by remember { mutableStateOf("") }
+    // Filtrar según lo que el usuario escribe
+    val clientesFiltrados = todosLosClientes.filter {
+        it.contains(clienteSeleccionado, ignoreCase = true)
+    }
+
+    val todasLasCiudades = listOf("Cali", "Palmira", "Buenaventura", "Cartago", "Tuluá", "Jamundí")
+    var expandedciudad by remember { mutableStateOf(false) }
+    var ciudadSeleccionada by remember { mutableStateOf("") }
+    // Filtrar según lo que el usuario escribe
+    val ciudadesFiltradas = todasLasCiudades.filter {
+        it.contains(ciudadSeleccionada, ignoreCase = true)
+    }
+
+
     val caso = remember { mutableStateOf("") }
+
+
     val horaInicio = remember { mutableStateOf("") }
     val horaFin = remember { mutableStateOf("") }
+    val calendarHora = Calendar.getInstance()
+    val regexHora = Regex("^([0][1-9]|1[0-2]):[0-5][0-9]\\s?(AM|PM)$", RegexOption.IGNORE_CASE)
 
+    val horaInicioValida = remember(horaInicio.value) {
+        horaInicio.value.trim().matches(regexHora)
+    }
+    val horaFinValida = remember(horaFin.value) {
+        horaFin.value.trim().matches(regexHora)
+    }
+    val timePickerInicio = TimePickerDialog(
+        context,
+        { _, hour, minute ->
+            val amPm = if (hour < 12) "AM" else "PM"
+            val horaFormateada =
+                String.format("%02d:%02d %s", if (hour % 12 == 0) 12 else hour % 12, minute, amPm)
+            horaInicio.value = horaFormateada
+        },
+        calendarHora.get(Calendar.HOUR_OF_DAY),
+        calendarHora.get(Calendar.MINUTE),
+        false // formato AM/PM
+    )
 
-    val nombreTecnico = remember { mutableStateOf("") }
-    var ccTecnico = remember { mutableStateOf("") }
+    val timePickerFin = TimePickerDialog(
+        context,
+        { _, hour, minute ->
+            val amPm = if (hour < 12) "AM" else "PM"
+            val horaFormateada =
+                String.format("%02d:%02d %s", if (hour % 12 == 0) 12 else hour % 12, minute, amPm)
+            horaFin.value = horaFormateada
+        },
+        calendarHora.get(Calendar.HOUR_OF_DAY),
+        calendarHora.get(Calendar.MINUTE),
+        false
+    )
 
-    val tipoDispositivo = remember { mutableStateOf("") }
-    val marca = remember { mutableStateOf("") }
-    val modelo = remember { mutableStateOf("") }
-    val serial = remember { mutableStateOf("") }
-    val ubicacion = remember { mutableStateOf("") }
-    val contador = remember { mutableStateOf("") }
-    val ip = remember { mutableStateOf("") }
+    var ccTecnico by remember { mutableStateOf("") }
+    var nombreTecnico by remember { mutableStateOf("") }
+    LaunchedEffect(ccTecnico) {
+        if (ccTecnico.length >= 6) { // puedes ajustar este valor
+            db.collection("usuario")
+                .whereEqualTo("cedula", ccTecnico)
+                .get()
+                .addOnSuccessListener { documents ->
+                    if (!documents.isEmpty) {
+                        val tecnico = documents.first()
+                        nombreTecnico = tecnico.getString("nombre") ?: ""
+                    } else {
+                        nombreTecnico = "No encontrado"
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    nombreTecnico = "Error: ${exception.message}"
+                    Log.e("FirestoreError", "Fallo al consultar: ", exception)
+                }
+        }
+    }
+    var serial by remember { mutableStateOf("") }
+    var tipoDispositivo by remember { mutableStateOf("") }
+    var marca by remember { mutableStateOf("") }
+    var modelo by remember { mutableStateOf("") }
+    var ubicacion by remember { mutableStateOf("") }
+    var sucursal by remember { mutableStateOf("") }
+    var contador by remember { mutableStateOf("") }
+    var ip by remember { mutableStateOf("") }
+    // Lanzar búsqueda cuando cambia el serial
+
 
     var estado = remember { mutableStateOf("Operativo") } // valor por defecto
     val tipoServicio = remember { mutableStateOf("Preventivo") }
@@ -86,12 +217,16 @@ fun PantallaFormulario() {
     val observaciones = remember { mutableStateOf("") }
 
     val nombreUsuario = remember { mutableStateOf("") }
+
     val firmaUsuario = remember { mutableStateOf("") }
+    var showFirma by remember { mutableStateOf(false) }
+    val path = remember { mutableStateOf(Path()) }
+    val canvasSize = remember { mutableStateOf(Size.Zero) }
+    val bitmap = remember { mutableStateOf<Bitmap?>(null) }
+
     val funcionario = remember { mutableStateOf("") }
 
 
-    Text("ACTA DE MANTENIMIENTO", style = MaterialTheme.typography.titleLarge)
-    Spacer(modifier = Modifier.height(16.dp))
 
     Column(
         modifier = Modifier
@@ -99,7 +234,8 @@ fun PantallaFormulario() {
             .verticalScroll(rememberScrollState())
     ) {
         // Campos del formulario
-
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("ACTA DE MANTENIMIENTO", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = fecha.value,
             onValueChange = {},
@@ -118,43 +254,15 @@ fun PantallaFormulario() {
         )
 
 
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                readOnly = true,
-                value = cliente.value,
-                onValueChange = {},
-                label = { Text("Cliente") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
+        OutlinedTextField(
+            value = caso.value,
+            onValueChange = { caso.value = it },
+            label = { Text("Caso #") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                opcionesCliente.forEach { opcion ->
-                    DropdownMenuItem(
-                        text = { Text(opcion) },
-                        onClick = {
-                            cliente.value = opcion
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-        OutlinedTextField(value = ciudad.value, onValueChange = { ciudad.value = it }, label = { Text("Ciudad") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = sucursal.value, onValueChange = { sucursal.value = it }, label = { Text("Sucursal o Sede") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = caso.value, onValueChange = { caso.value = it }, label = { Text("Caso #") }, modifier = Modifier.fillMaxWidth())
+        //Variables Horas
         Text("Horario", style = MaterialTheme.typography.labelLarge)
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -165,33 +273,237 @@ fun PantallaFormulario() {
                 value = horaInicio.value,
                 onValueChange = { horaInicio.value = it },
                 label = { Text("Hora Inicio") },
-                modifier = Modifier.weight(1f)
+                placeholder = { Text("Ej: 08:30 AM") },
+                isError = horaInicio.value.isNotEmpty() && !horaInicioValida,
+                trailingIcon = {
+                    IconButton(onClick = { timePickerInicio.show() }) {
+                        Icon(Icons.Default.AddCircle, contentDescription = "Abrir reloj")
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        timePickerInicio.show()
+                    },
+                singleLine = true
             )
 
             OutlinedTextField(
                 value = horaFin.value,
                 onValueChange = { horaFin.value = it },
                 label = { Text("Hora Fin") },
-                modifier = Modifier.weight(1f)
+                placeholder = { Text("Ej: 10:45 AM") },
+                isError = horaFin.value.isNotEmpty() && !horaFinValida,
+                trailingIcon = {
+                    IconButton(onClick = { timePickerFin.show() }) {
+                        Icon(Icons.Default.AccessTimeFilled, contentDescription = "Abrir reloj")
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        timePickerFin.show()
+                    },
+                singleLine = true
             )
         }
 
+        //Variables Cedula y Nombre del Tecnico
         Spacer(modifier = Modifier.height(24.dp))
         Text("Datos del Técnico", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(value = nombreTecnico.value, onValueChange = { nombreTecnico.value = it }, label = { Text("Nombre Técnico") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = ccTecnico.value, onValueChange = { ccTecnico.value = it }, label = { Text("CC Técnico") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = ccTecnico,
+            onValueChange = { ccTecnico = it },
+            label = { Text("Cédula Técnico") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
+        OutlinedTextField(
+            value = nombreTecnico,
+            onValueChange = {},
+            label = { Text("Nombre Técnico") },
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        //Variables Datos del Dispositivo
         Spacer(modifier = Modifier.height(24.dp))
         Text("Datos del Dispositivo", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(value = tipoDispositivo.value, onValueChange = { tipoDispositivo.value = it }, label = { Text("Tipo de Dispositivo") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = marca.value, onValueChange = { marca.value = it }, label = { Text("Marca") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = modelo.value, onValueChange = { modelo.value = it }, label = { Text("Modelo") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = serial.value, onValueChange = { serial.value = it }, label = { Text("Serial") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = ubicacion.value, onValueChange = { ubicacion.value = it }, label = { Text("Ubicación") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = contador.value, onValueChange = { contador.value = it }, label = { Text("Contador") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = ip.value, onValueChange = { ip.value = it }, label = { Text("Dirección IP") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = serial,
+            onValueChange = { serial = it.replace(" ", "") },
+            label = { Text("Serial") },
+            trailingIcon = {
+                IconButton(onClick = {
+                    val serialBusqueda = serial.uppercase()
+                    Log.d("SerialDebug", "Serial limpio: $serialBusqueda")
+                    db.collection("impresora")
+                        .whereEqualTo("serial", serialBusqueda)
+                        .get()
+                        .addOnSuccessListener { result ->
+                            if (!result.isEmpty) {
+                                val document = result.documents[0]
+                                tipoDispositivo = document.getString("tipoImp") ?: "No encontrado"
+                                marca = document.getString("marca") ?: "No encontrado"
+                                modelo = document.getString("modelo") ?: "No encontrado"
+                                ubicacion = document.getString("ubicacion") ?: "No encontrado"
+                                ip = document.getString("ip") ?: "No encontrado"
+                                ciudadSeleccionada = document.getString("ciudad") ?: "No encontrado"
+                                clienteSeleccionado =
+                                    document.getString("cliente") ?: "No encontrado"
+                                sucursal = document.getString("sucursal") ?: "No encontrado"
+                            } else {
+                                tipoDispositivo = "No encontrado"
+                                marca = ""
+                                modelo = ""
+                                ubicacion = ""
+                                sucursal = ""
+                                ip = ""
+                                ciudadSeleccionada = ""
+                                clienteSeleccionado = ""
+                                sucursal = ""
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            tipoDispositivo = "Error: ${exception.message}"
+                            Log.e("FirestoreError", "Fallo al consultar: ", exception)
+                        }
+                }) {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = "Buscar")
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        )
+        OutlinedTextField(
+            value = tipoDispositivo,
+            onValueChange = { tipoDispositivo = it },
+            label = { Text("Tipo de Dispositivo") },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true
+        )
+        OutlinedTextField(
+            value = marca,
+            onValueChange = { marca = it },
+            label = { Text("Marca") },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true
+        )
+        OutlinedTextField(
+            value = modelo,
+            onValueChange = { modelo = it },
+            label = { Text("Modelo") },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true
+        )
+        OutlinedTextField(
+            value = ubicacion,
+            onValueChange = { ubicacion = it },
+            label = { Text("Ubicación") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = ip,
+            onValueChange = { ip = it },
+            label = { Text("Dirección IP") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        //Variable Cliente
+        ExposedDropdownMenuBox(
+            expanded = expandedCliente,
+            onExpandedChange = { expandedCliente = !expandedCliente }
+        ) {
+            OutlinedTextField(
+                value = clienteSeleccionado,
+                onValueChange = {
+                    clienteSeleccionado = it
+                    expandedCliente = true // se despliega al escribir
+                },
+                label = { Text("Cliente") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCliente)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedCliente,
+                onDismissRequest = { expandedCliente = false }
+            ) {
+                clientesFiltrados.forEach { cliente ->
+                    DropdownMenuItem(
+                        text = { Text(cliente) },
+                        onClick = {
+                            clienteSeleccionado = cliente
+                            expandedCliente = false
+                        }
+                    )
+                }
+            }
+        }
 
 
+        //Variable Ciudad
+        ExposedDropdownMenuBox(
+            expanded = expandedciudad,
+            onExpandedChange = { expandedciudad = !expandedciudad }
+        ) {
+            OutlinedTextField(
+                value = ciudadSeleccionada,
+                onValueChange = {
+                    ciudadSeleccionada = it
+                    expandedciudad = true // se despliega al escribir
+                },
+                label = { Text("Ciudad") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedciudad)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedciudad,
+                onDismissRequest = { expandedciudad = false }
+            ) {
+                ciudadesFiltradas.forEach { ciudad ->
+                    DropdownMenuItem(
+                        text = { Text(ciudad) },
+                        onClick = {
+                            ciudadSeleccionada = ciudad
+                            expandedciudad = false
+                        }
+                    )
+                }
+            }
+        }
+
+
+
+        OutlinedTextField(
+            value = sucursal,
+            onValueChange = { sucursal = it },
+            label = { Text("Sucursal o Sede") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = contador,
+            onValueChange = { contador = it },
+            label = { Text("Contador") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        //Variable Estado del dispositivo
         Spacer(modifier = Modifier.height(24.dp))
         Text("Estado del Dispositivo", style = MaterialTheme.typography.titleMedium)
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -206,9 +518,10 @@ fun PantallaFormulario() {
             )
             Text("No Operativo")
         }
+
+        //Variable Tipos de Servicio
         Spacer(modifier = Modifier.height(24.dp))
         Text("Tipo de Servicio", style = MaterialTheme.typography.titleMedium)
-
         Row(modifier = Modifier.fillMaxWidth()) {
             RadioButton(
                 selected = tipoServicio.value == "Preventivo",
@@ -223,58 +536,723 @@ fun PantallaFormulario() {
             Text("Correctivo")
         }
 
+        //Variable Observaciones
         Spacer(modifier = Modifier.height(16.dp))
         Text("Observaciones", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(value = observaciones.value, onValueChange = { observaciones.value = it }, label = { Text("Observaciones") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = observaciones.value,
+            onValueChange = { observaciones.value = it },
+            label = { Text("Observaciones") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
+        //Variables Finales
         Spacer(modifier = Modifier.height(24.dp))
         Text("Recibe a satisfacción", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(value = nombreUsuario.value, onValueChange = { nombreUsuario.value = it }, label = { Text("Nombre Usuario") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = firmaUsuario.value, onValueChange = { firmaUsuario.value = it }, label = { Text("Firma Usuario") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = funcionario.value, onValueChange = { funcionario.value = it }, label = { Text("Funcionario") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = nombreUsuario.value,
+            onValueChange = { nombreUsuario.value = it },
+            label = { Text("Nombre Usuario") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        //OutlinedTextField(value = firmaUsuario.value, onValueChange = { firmaUsuario.value = it }, label = { Text("Firma Usuario") }, modifier = Modifier.fillMaxWidth())
+        var mostrarModalUsuario by remember { mutableStateOf(false) }
+        var firmaUsuarioBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+        OutlinedButton(
+            onClick = { mostrarModalUsuario = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.Edit, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Firmar Usuario")
+        }
+
+        if (mostrarModalUsuario) {
+            ModalFirmaUsuario(
+                onCerrar = { mostrarModalUsuario = false },
+                onGuardar = {
+                    firmaUsuarioBitmap = it
+                    mostrarModalUsuario = false
+                }
+            )
+        }
+
+
+        //Variable funcionario
+        var mostrarModalFuncionario by remember { mutableStateOf(false) }
+        var firmaFuncionarioBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+        OutlinedButton(
+            onClick = { mostrarModalFuncionario = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.Edit, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Firmar Funcionario")
+        }
+
+        if (mostrarModalFuncionario) {
+            ModalFirmaFuncionario(
+                onCerrar = { mostrarModalFuncionario = false },
+                onGuardar = {
+                    firmaFuncionarioBitmap = it
+                    mostrarModalFuncionario = false
+                }
+            )
+        }
+
+
+
 
         // Botón de Guardar
-        Button(
-            onClick = {
-                val form = FormularioMantenimiento(
-                    fecha.value, cliente.value, ciudad.value, sucursal.value, caso.value,
-                    horaInicio.value, horaFin.value, nombreTecnico.value, ccTecnico.value,
-                    tipoDispositivo.value, marca.value, modelo.value, serial.value, ubicacion.value,
-                    contador.value, ip.value, estado.value, tipoServicio.value, observaciones.value,
-                    nombreUsuario.value, firmaUsuario.value, funcionario.value
+        val formImpresora = FormularioMantenimiento(
+            cliente = clienteSeleccionado,
+            ciudad = ciudadSeleccionada,
+            sucursal = sucursal,
+            tipoDispositivo = tipoDispositivo,
+            marca = marca,
+            modelo = modelo,
+            serial = serial.uppercase(),
+            ubicacion = ubicacion,
+            ip = ip,
+
+        )
+        //Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    // Paso 1: Buscar el documento por un campo único
+                    val serialBusqueda = serial.uppercase()
+                    db.collection("impresora")
+                        .whereEqualTo(
+                            "serial",
+                            serialBusqueda
+                        )  // Cambia "caso" por el campo que estés usando como clave única
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            if (!querySnapshot.isEmpty) {
+                                val document =
+                                    querySnapshot.documents[0]  // Tomamos el primer documento encontrado
+                                val documentId = document.id
+
+
+                                // Paso 3: Actualizar el documento
+                                db.collection("impresora")
+                                    .document(documentId)
+                                    .set(formImpresora, SetOptions.merge())
+                                    .addOnSuccessListener {
+                                        guardarFormularioEnPDF(
+                                            fecha.value, clienteSeleccionado, ciudadSeleccionada, sucursal, caso.value,
+                                            horaInicio.value, horaFin.value, nombreTecnico, ccTecnico, tipoDispositivo,
+                                            marca, modelo, serial, ubicacion, contador, ip, estado.value,
+                                            tipoServicio.value, observaciones.value, nombreUsuario.value,
+                                            firmaUsuarioBitmap, firmaFuncionarioBitmap, context
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Formulario actualizado correctamente",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    .addOnFailureListener {
+                                        Toast.makeText(
+                                            context,
+                                            "Error al actualizar: ${it.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "No se encontró el documento con ese serial",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(
+                                context,
+                                "Error al buscar el documento: ${it.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                }
+            ) {
+                Icon(Icons.Filled.Save, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Guardar Formulario")
+            }
+
+            var mostrarVistaPrevia by remember { mutableStateOf(false) }
+            Button(onClick = { mostrarVistaPrevia = true }) {
+                Icon(Icons.Filled.Assignment, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Vista Previa")
+            }
+
+            if (mostrarVistaPrevia) {
+                VistaPreviaFormularioCompleta(
+                    fecha.value, clienteSeleccionado, ciudadSeleccionada, sucursal, caso.value,
+                    horaInicio.value, horaFin.value, nombreTecnico, ccTecnico, tipoDispositivo,
+                    marca, modelo, serial, ubicacion, contador, ip, estado.value,
+                    tipoServicio.value, observaciones.value, nombreUsuario.value,
+                    firmaUsuarioBitmap, firmaFuncionarioBitmap
                 )
-                Toast.makeText(context, "Guardado para ${form.cliente}", Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Text("Guardar Formulario")
-        }
+            }
+       // }
     }
 }
 data class FormularioMantenimiento(
-    val fecha: String,
     val cliente: String,
     val ciudad: String,
     val sucursal: String,
-    val caso: String,
-    val horaInicio: String,
-    val horaFin: String,
-    val nombreTecnico: String,
-    val ccTecnico: String,
     val tipoDispositivo: String,
     val marca: String,
     val modelo: String,
     val serial: String,
     val ubicacion: String,
-    val contador: String,
     val ip: String,
-    val estado: String,
-    val tipoServicio: String,
-    val observaciones: String,
-    val nombreUsuario: String,
-    val firmaUsuario: String,
-    val funcionario: String
+
 )
+@Composable
+fun ModalFirmaUsuario(
+    onCerrar: () -> Unit,
+    onGuardar: (Bitmap) -> Unit
+) {
+    val context = LocalContext.current
+    var imagenFirmaFoto by remember { mutableStateOf<Bitmap?>(null) }
+
+    val paths = remember { mutableStateListOf<android.graphics.Path>() }
+    var currentPath = remember { mutableStateOf<android.graphics.Path?>(null) }
+
+    val uri = remember {
+        val archivo = File(context.cacheDir, "firma_usuario.jpg")
+        FileProvider.getUriForFile(context, "${context.packageName}.provider", archivo)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                val original = BitmapFactory.decodeStream(
+                    context.contentResolver.openInputStream(uri)
+                )
+                imagenFirmaFoto = recortarFirmaAutomatica(original)
+                paths.clear()
+                currentPath.value = null
+            }
+        }
+    )
+
+    Dialog(onDismissRequest = onCerrar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Text("Firma del Usuario", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val newPath = android.graphics.Path().apply {
+                                            moveTo(offset.x, offset.y)
+                                        }
+                                        currentPath.value = newPath
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        currentPath.value?.lineTo(change.position.x, change.position.y)
+                                    },
+                                    onDragEnd = {
+                                        currentPath.value?.let { paths.add(it) }
+                                        currentPath.value = null
+                                    }
+                                )
+                            }
+                    ) {
+                        if (imagenFirmaFoto != null) {
+                            Image(
+                                bitmap = imagenFirmaFoto!!.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val paint = android.graphics.Paint().apply {
+                                    color = android.graphics.Color.BLACK
+                                    strokeWidth = 4f
+                                    style = android.graphics.Paint.Style.STROKE
+                                    isAntiAlias = true
+                                }
+
+                                drawIntoCanvas { canvas ->
+                                    paths.forEach { canvas.nativeCanvas.drawPath(it, paint) }
+                                    currentPath.value?.let { canvas.nativeCanvas.drawPath(it, paint) }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = {
+                        imagenFirmaFoto = null
+                        currentPath.value = null
+                        paths.clear()
+                    }) {
+                        Icon(Icons.Filled.Clear, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Limpiar")
+                    }
+
+                    OutlinedButton(onClick = onCerrar) {
+                        Text("Cancelar")
+                    }
+
+                    OutlinedButton(onClick = {
+                        cameraLauncher.launch(uri)
+                    }) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Foto Firma")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        val bitmap = if (imagenFirmaFoto != null) {
+                            imagenFirmaFoto!!
+                        } else {
+                            capturarListaPathComoBitmap(paths)
+                        }
+                        onGuardar(bitmap)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Save, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Guardar")
+                }
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+fun ModalFirmaFuncionario(
+    onCerrar: () -> Unit,
+    onGuardar: (Bitmap) -> Unit
+) {
+    val context = LocalContext.current
+    var imagenFirmaFoto by remember { mutableStateOf<Bitmap?>(null) }
+
+    // Lista de trazos independientes
+    val paths = remember { mutableStateListOf<android.graphics.Path>() }
+    val currentPath = remember { mutableStateOf<android.graphics.Path?>(null) }
+
+    val uri = remember {
+        val archivo = File(context.cacheDir, "firma_funcionario.jpg")
+        FileProvider.getUriForFile(context, "${context.packageName}.provider", archivo)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                val original = BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
+                imagenFirmaFoto = recortarFirmaAutomatica(original)
+                paths.clear()
+                currentPath.value = null
+            }
+        }
+    )
+
+    Dialog(onDismissRequest = onCerrar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Text("Firma del Funcionario", style = MaterialTheme.typography.titleMedium)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val nuevoPath = android.graphics.Path().apply {
+                                            moveTo(offset.x, offset.y)
+                                        }
+                                        currentPath.value = nuevoPath
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        currentPath.value?.lineTo(change.position.x, change.position.y)
+                                    },
+                                    onDragEnd = {
+                                        currentPath.value?.let { paths.add(it) }
+                                        currentPath.value = null
+                                    }
+                                )
+                            }
+                    ) {
+                        if (imagenFirmaFoto != null) {
+                            Image(
+                                bitmap = imagenFirmaFoto!!.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val paint = android.graphics.Paint().apply {
+                                    color = android.graphics.Color.BLACK
+                                    style = android.graphics.Paint.Style.STROKE
+                                    strokeWidth = 4f
+                                    isAntiAlias = true
+                                }
+
+                                drawIntoCanvas { canvas ->
+                                    paths.forEach { canvas.nativeCanvas.drawPath(it, paint) }
+                                    currentPath.value?.let { canvas.nativeCanvas.drawPath(it, paint) }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = {
+                        imagenFirmaFoto = null
+                        currentPath.value = null
+                        paths.clear()
+                    }) {
+                        Icon(Icons.Filled.Delete, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Limpiar")
+                    }
+
+                    OutlinedButton(onClick = onCerrar) {
+                        Icon(Icons.Filled.Cancel, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cancelar")
+                    }
+
+                    OutlinedButton(onClick = {
+                        cameraLauncher.launch(uri)
+                    }) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Foto Firma")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        val bitmap = if (imagenFirmaFoto != null) {
+                            imagenFirmaFoto!!
+                        } else {
+                            capturarListaPathComoBitmap(paths)
+                        }
+                        onGuardar(bitmap)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Save, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Guardar")
+                }
+            }
+        }
+    }
+}
+
+fun capturarListaPathComoBitmap(paths: List<android.graphics.Path>): Bitmap {
+    val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK
+        strokeWidth = 4f
+        style = android.graphics.Paint.Style.STROKE
+        isAntiAlias = true
+    }
+    paths.forEach { canvas.drawPath(it, paint) }
+    return bitmap
+}
+
+
+
+fun recortarFirmaAutomatica(original: Bitmap): Bitmap {
+    val width = original.width
+    val height = original.height
+
+    var top = height
+    var bottom = 0
+    var left = width
+    var right = 0
+
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val pixel = original.getPixel(x, y)
+            val r = (pixel shr 16) and 0xff
+            val g = (pixel shr 8) and 0xff
+            val b = pixel and 0xff
+
+            val isDark = (r + g + b) / 3 < 200
+
+            if (isDark) {
+                if (x < left) left = x
+                if (x > right) right = x
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
+        }
+    }
+
+    return if (top >= bottom || left >= right) {
+        original
+    } else {
+        Bitmap.createBitmap(original, left, top, right - left, bottom - top)
+    }
+}
+fun capturarFirmaComoBitmap(path: android.graphics.Path): Bitmap {
+    val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK
+        strokeWidth = 4f
+        style = android.graphics.Paint.Style.STROKE
+        isAntiAlias = true
+    }
+    canvas.drawPath(path, paint)
+    return bitmap
+}
+
+@Composable
+fun VistaPreviaFormularioCompleta(
+    fecha: String,
+    clienteSeleccionado: String,
+    ciudadSeleccionada: String,
+    sucursal: String,
+    caso: String,
+    horaInicio: String,
+    horaFin: String,
+    nombreTecnico: String,
+    ccTecnico: String,
+    tipoDispositivo: String,
+    marca: String,
+    modelo: String,
+    serial: String,
+    ubicacion: String,
+    contador: String,
+    ip: String,
+    estado: String,
+    tipoServicio: String,
+    observaciones: String,
+    nombreUsuario: String,
+    firmaUsuarioBitmap: Bitmap?,
+    firmaFuncionarioBitmap: Bitmap?
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text("Vista Previa del Formulario", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        InfoCampo("Fecha", fecha)
+        InfoCampo("Cliente", clienteSeleccionado)
+        InfoCampo("Ciudad", ciudadSeleccionada)
+        InfoCampo("Sucursal", sucursal)
+        InfoCampo("Caso", caso)
+
+        InfoCampo("Hora de Inicio", horaInicio)
+        InfoCampo("Hora de Fin", horaFin)
+
+        InfoCampo("Nombre Técnico", nombreTecnico)
+        InfoCampo("Cédula Técnico", ccTecnico)
+
+        InfoCampo("Tipo de Dispositivo", tipoDispositivo)
+        InfoCampo("Marca", marca)
+        InfoCampo("Modelo", modelo)
+        InfoCampo("Serial", serial)
+        InfoCampo("Ubicación", ubicacion)
+        InfoCampo("Contador", contador)
+        InfoCampo("IP", ip)
+
+        InfoCampo("Estado", estado)
+        InfoCampo("Tipo de Servicio", tipoServicio)
+        InfoCampo("Observaciones", observaciones)
+
+        InfoCampo("Nombre Usuario", nombreUsuario)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Firma del Usuario", fontWeight = FontWeight.Bold)
+        FirmaPreview(firmaUsuarioBitmap)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text("Firma del Funcionario", fontWeight = FontWeight.Bold)
+        FirmaPreview(firmaFuncionarioBitmap)
+    }
+}
+
+@Composable
+fun InfoCampo(label: String, valor: String) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(text = label, fontWeight = FontWeight.SemiBold)
+        Text(text = if (valor.isNotBlank()) valor else "—", color = Color.Gray)
+    }
+}
+
+@Composable
+fun FirmaPreview(bitmap: Bitmap?) {
+    if (bitmap != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp),
+            shape = RoundedCornerShape(8.dp),
+            elevation = CardDefaults.cardElevation(4.dp)
+        ) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    } else {
+        Text("Sin firma", color = Color.Red)
+    }
+}
+
+fun guardarFormularioEnPDF(
+    fecha: String,
+    clienteSeleccionado: String,
+    ciudadSeleccionada: String,
+    sucursal: String,
+    caso: String,
+    horaInicio: String,
+    horaFin: String,
+    nombreTecnico: String,
+    ccTecnico: String,
+    tipoDispositivo: String,
+    marca: String,
+    modelo: String,
+    serial: String,
+    ubicacion: String,
+    contador: String,
+    ip: String,
+    estado: String,
+    tipoServicio: String,
+    observaciones: String,
+    nombreUsuario: String,
+    firmaUsuarioBitmap: Bitmap?,
+    firmaFuncionarioBitmap: Bitmap?,
+    context: Context
+) {
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 tamaño
+    val page = pdfDocument.startPage(pageInfo)
+
+    val canvas = page.canvas
+    val paint = Paint().apply {
+        textSize = 14f
+        color = ContextCompat.getColor(context, R.color.black)
+    }
+
+    val dataList = listOf(
+        "Fecha: $fecha",
+        "Cliente: $clienteSeleccionado",
+        "Ciudad: $ciudadSeleccionada",
+        "Sucursal: $sucursal",
+        "Caso: $caso",
+        "Hora inicio: $horaInicio",
+        "Hora fin: $horaFin",
+        "Técnico: $nombreTecnico",
+        "C.C. Técnico: $ccTecnico",
+        "Dispositivo: $tipoDispositivo",
+        "Marca: $marca",
+        "Modelo: $modelo",
+        "Serial: $serial",
+        "Ubicación: $ubicacion",
+        "Contador: $contador",
+        "IP: $ip",
+        "Estado: $estado",
+        "Tipo de servicio: $tipoServicio",
+        "Observaciones: $observaciones",
+        "Usuario: $nombreUsuario"
+    )
+
+    var y = 50
+    for (line in dataList) {
+        canvas.drawText(line, 40f, y.toFloat(), paint)
+        y += 25
+    }
+
+    // Dibujar firmas si existen
+    val firmaWidth = 200
+    val firmaHeight = 100
+
+    firmaUsuarioBitmap?.let { bitmap ->
+        val scaledFirma = Bitmap.createScaledBitmap(bitmap, firmaWidth, firmaHeight, true)
+        canvas.drawText("Firma Usuario:", 40f, y + 30f, paint)
+        canvas.drawBitmap(scaledFirma, 40f, (y + 40).toFloat(), null)
+    }
+
+    firmaFuncionarioBitmap?.let { bitmap ->
+        val scaledFirma = Bitmap.createScaledBitmap(bitmap, firmaWidth, firmaHeight, true)
+        canvas.drawText("Firma Funcionario:", 300f, y + 30f, paint)
+        canvas.drawBitmap(scaledFirma, 300f, (y + 40).toFloat(), null)
+    }
+
+    pdfDocument.finishPage(page)
+
+    // Guardar el PDF
+    val file = File(
+        context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
+        "Formulario_${System.currentTimeMillis()}.pdf"
+    )
+
+    try {
+        pdfDocument.writeTo(FileOutputStream(file))
+        Toast.makeText(context, "PDF guardado en:\n${file.absolutePath}", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Toast.makeText(context, "Error al guardar PDF: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+
+    pdfDocument.close()
+}
+
+
+
+
 
