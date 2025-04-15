@@ -44,6 +44,13 @@ android {
         compose = true
 
     }
+    sourceSets {
+        getByName("main") {
+            assets {
+                srcDirs("src\\main\\assets", "src\\main\\assets")
+            }
+        }
+    }
 }
 
 dependencies {
@@ -65,6 +72,8 @@ dependencies {
     implementation ("androidx.core:core-ktx:1.12.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
+    implementation ("com.tom-roush:pdfbox-android:2.0.27.0")
+
 
     implementation(libs.firebase.firestore.ktx)
 

@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 //import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.app.TimePickerDialog
+import android.content.ActivityNotFoundException
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.foundation.Canvas
@@ -89,7 +90,11 @@ import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import java.io.FileOutputStream
 import android.content.Context
+import android.content.Intent
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
+import java.io.IOException
 
 
 class MainActivity : ComponentActivity() {
@@ -641,18 +646,48 @@ fun PantallaFormulario() {
                                     .document(documentId)
                                     .set(formImpresora, SetOptions.merge())
                                     .addOnSuccessListener {
-                                        guardarFormularioEnPDF(
-                                            fecha.value, clienteSeleccionado, ciudadSeleccionada, sucursal, caso.value,
-                                            horaInicio.value, horaFin.value, nombreTecnico, ccTecnico, tipoDispositivo,
-                                            marca, modelo, serial, ubicacion, contador, ip, estado.value,
-                                            tipoServicio.value, observaciones.value, nombreUsuario.value,
-                                            firmaUsuarioBitmap, firmaFuncionarioBitmap, context
-                                        )
+//                                        guardarFormularioEnPDF(
+//                                            fecha.value, clienteSeleccionado, ciudadSeleccionada, sucursal, caso.value,
+//                                            horaInicio.value, horaFin.value, nombreTecnico, ccTecnico, tipoDispositivo,
+//                                            marca, modelo, serial, ubicacion, contador, ip, estado.value,
+//                                            tipoServicio.value, observaciones.value, nombreUsuario.value,
+//                                            firmaUsuarioBitmap, firmaFuncionarioBitmap, context
+//                                        )
                                         Toast.makeText(
                                             context,
                                             "Formulario actualizado correctamente",
                                             Toast.LENGTH_SHORT
                                         ).show()
+                                        val formulario = Formulario1(
+                                            fecha = fecha.value,
+                                            clienteSeleccionado = clienteSeleccionado,
+                                            ciudadSeleccionada = ciudadSeleccionada,
+                                            sucursal = sucursal,
+                                            caso = caso.value,
+                                            horaInicio = horaInicio.value,
+                                            horaFin = horaFin.value,
+                                            nombreTecnico = nombreTecnico,
+                                            ccTecnico = ccTecnico,
+                                            tipoDispositivo = tipoDispositivo,
+                                            marca = marca,
+                                            modelo = modelo,
+                                            serial = serial,
+                                            ubicacion = ubicacion,
+                                            contador = contador,
+                                            ip = ip,
+                                            estado = estado.value,
+                                            tipoServicio = tipoServicio.value,
+                                            observaciones = observaciones.value,
+                                            nombreUsuario = nombreUsuario.value
+                                        )
+                                        val archivoPDF = llenarPlantillaPDF(
+                                            context = context,
+                                            formulario = formulario,
+                                            firmaUsuario = firmaUsuarioBitmap,
+                                            firmaFuncionario = firmaFuncionarioBitmap
+                                        )
+
+                                        abrirPDF(context, archivoPDF)
                                     }
                                     .addOnFailureListener {
                                         Toast.makeText(
@@ -713,6 +748,28 @@ data class FormularioMantenimiento(
     val ubicacion: String,
     val ip: String,
 
+)
+data class Formulario1(
+    val fecha: String,
+    val clienteSeleccionado: String,
+    val ciudadSeleccionada: String,
+    val sucursal: String,
+    val caso: String,
+    val horaInicio: String,
+    val horaFin: String,
+    val nombreTecnico: String,
+    val ccTecnico: String,
+    val tipoDispositivo: String,
+    val marca: String,
+    val modelo: String,
+    val serial: String,
+    val ubicacion: String,
+    val contador: String,
+    val ip: String,
+    val estado: String,
+    val tipoServicio: String,
+    val observaciones: String,
+    val nombreUsuario: String
 )
 @Composable
 fun ModalFirmaUsuario(
@@ -1153,104 +1210,254 @@ fun FirmaPreview(bitmap: Bitmap?) {
     }
 }
 
-fun guardarFormularioEnPDF(
-    fecha: String,
-    clienteSeleccionado: String,
-    ciudadSeleccionada: String,
-    sucursal: String,
-    caso: String,
-    horaInicio: String,
-    horaFin: String,
-    nombreTecnico: String,
-    ccTecnico: String,
-    tipoDispositivo: String,
-    marca: String,
-    modelo: String,
-    serial: String,
-    ubicacion: String,
-    contador: String,
-    ip: String,
-    estado: String,
-    tipoServicio: String,
-    observaciones: String,
-    nombreUsuario: String,
-    firmaUsuarioBitmap: Bitmap?,
-    firmaFuncionarioBitmap: Bitmap?,
-    context: Context
-) {
-    val pdfDocument = PdfDocument()
-    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 tamaño
-    val page = pdfDocument.startPage(pageInfo)
+//fun guardarFormularioEnPDF(
+//    fecha: String,
+//    clienteSeleccionado: String,
+//    ciudadSeleccionada: String,
+//    sucursal: String,
+//    caso: String,
+//    horaInicio: String,
+//    horaFin: String,
+//    nombreTecnico: String,
+//    ccTecnico: String,
+//    tipoDispositivo: String,
+//    marca: String,
+//    modelo: String,
+//    serial: String,
+//    ubicacion: String,
+//    contador: String,
+//    ip: String,
+//    estado: String,
+//    tipoServicio: String,
+//    observaciones: String,
+//    nombreUsuario: String,
+//    firmaUsuarioBitmap: Bitmap?,
+//    firmaFuncionarioBitmap: Bitmap?,
+//    context: Context
+//) {
+//    val pdfDocument = PdfDocument()
+//    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Tamaño A4
+//    val page = pdfDocument.startPage(pageInfo)
+//    val canvas = page.canvas
+//
+//    val paint = Paint()
+//    paint.color = android.graphics.Color.BLACK
+//    paint.textSize = 12f
+//
+//    var y = 100f // Posición inicial vertical
+//
+//    // Encabezado centrado
+//    val headerBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.encabezado)
+//    val scaledHeader = Bitmap.createScaledBitmap(headerBitmap, 500, 80, true)
+//    canvas.drawBitmap(scaledHeader, (pageInfo.pageWidth - scaledHeader.width) / 2f, 10f, null)
+//
+//    // Datos del técnico
+//    canvas.drawText("Datos del Técnico:", 30f, y, paint)
+//    y += 20
+//    canvas.drawText("Nombre: $nombreTecnico", 30f, y, paint)
+//    y += 20
+//    canvas.drawText("CC: $ccTecnico", 30f, y, paint)
+//    y += 30
+//
+//    // Datos del dispositivo
+//    canvas.drawText("Datos del dispositivo:", 30f, y, paint)
+//    y += 20
+//    canvas.drawText("Tipo: $tipoDispositivo", 30f, y, paint)
+//    canvas.drawText("Marca: $marca", 250f, y, paint)
+//    y += 20
+//    canvas.drawText("Modelo: $modelo", 30f, y, paint)
+//    canvas.drawText("Serial: $serial", 250f, y, paint)
+//    y += 20
+//    canvas.drawText("Ubicación: $ubicacion", 30f, y, paint)
+//    canvas.drawText("Contador: $contador", 250f, y, paint)
+//    y += 20
+//    canvas.drawText("Estado del dispositivo: $estado", 30f, y, paint)
+//    y += 20
+//    canvas.drawText("Dirección IP: $ip", 30f, y, paint)
+//    y += 30
+//
+//    // Tipo de servicio
+//    canvas.drawText("Tipo de Servicio: $tipoServicio", 30f, y, paint)
+//    y += 20
+//
+//    // Observaciones
+//    canvas.drawText("Observaciones:", 30f, y, paint)
+//    y += 20
+//    val obsLines = observaciones.chunked(90) // Dividir texto largo
+//    obsLines.forEach {
+//        canvas.drawText(it, 30f, y, paint)
+//        y += 20
+//    }
+//    y += 20
+//
+//    // Firma Usuario
+//    canvas.drawText("Recibe a satisfacción:", 30f, y, paint)
+//    y += 30
+//    firmaUsuarioBitmap?.let {
+//        val scaledFirmaUsuario = Bitmap.createScaledBitmap(it, 120, 60, true)
+//        canvas.drawBitmap(scaledFirmaUsuario, 30f, y, null)
+//    }
+//    firmaFuncionarioBitmap?.let {
+//        val scaledFirmaFuncionario = Bitmap.createScaledBitmap(it, 120, 60, true)
+//        canvas.drawBitmap(scaledFirmaFuncionario, 200f, y, null)
+//    }
+//    canvas.drawText("$nombreUsuario", 30f, y + 70, paint)
+//    canvas.drawText("Funcionario Carvajal S.A.", 200f, y + 70, paint)
+//
+//    // Pie de página
+//    val footerBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pie_pagina)
+//    val scaledFooter = Bitmap.createScaledBitmap(footerBitmap, 500, 80, true)
+//    canvas.drawBitmap(scaledFooter, (pageInfo.pageWidth - scaledFooter.width) / 2f, pageInfo.pageHeight - 90f, null)
+//
+//    pdfDocument.finishPage(page)
+//
+//    // Guardar archivo
+//    val file = File(context.cacheDir, "formulario_mantenimiento.pdf")
+//    try {
+//        pdfDocument.writeTo(FileOutputStream(file))
+//        Toast.makeText(context, "PDF guardado en ${file.absolutePath}", Toast.LENGTH_LONG).show()
+//        abrirPDF(context, file.name)
+//    } catch (e: IOException) {
+//        e.printStackTrace()
+//        Toast.makeText(context, "Error al guardar el PDF", Toast.LENGTH_SHORT).show()
+//    }
+//
+//    pdfDocument.close()
+//}
+//
+//
+//
+//fun abrirPDF(context: Context, fileName: String) {
+//    try {
+//        val file = File(context.cacheDir, fileName)
+//        if (!file.exists()) {
+//            Toast.makeText(context, "El archivo PDF no se encuentra", Toast.LENGTH_SHORT).show()
+//            return
+//        }
+//
+//        val uri: Uri = FileProvider.getUriForFile(
+//            context,
+//            "${context.packageName}.provider",
+//            file
+//        )
+//
+//        val intent = Intent(Intent.ACTION_VIEW).apply {
+//            setDataAndType(uri, "application/pdf")
+//            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_GRANT_READ_URI_PERMISSION
+//        }
+//
+//        context.startActivity(Intent.createChooser(intent, "Abrir PDF con..."))
+//
+//    } catch (e: Exception) {
+//        e.printStackTrace()
+//        Toast.makeText(context, "No se pudo abrir el PDF", Toast.LENGTH_SHORT).show()
+//    }
+//}
 
-    val canvas = page.canvas
-    val paint = Paint().apply {
-        textSize = 14f
-        color = ContextCompat.getColor(context, R.color.black)
+fun llenarPlantillaPDF(
+    context: Context,
+    formulario: Formulario1,
+    firmaUsuario: Bitmap?,
+    firmaFuncionario: Bitmap?
+): File {
+    val fileAsset = File(context.cacheDir, "plantilla_formulario.pdf")
+    context.assets.open("plantilla_formulario.pdf").use { input ->
+        FileOutputStream(fileAsset).use { output -> input.copyTo(output) }
     }
 
-    val dataList = listOf(
-        "Fecha: $fecha",
-        "Cliente: $clienteSeleccionado",
-        "Ciudad: $ciudadSeleccionada",
-        "Sucursal: $sucursal",
-        "Caso: $caso",
-        "Hora inicio: $horaInicio",
-        "Hora fin: $horaFin",
-        "Técnico: $nombreTecnico",
-        "C.C. Técnico: $ccTecnico",
-        "Dispositivo: $tipoDispositivo",
-        "Marca: $marca",
-        "Modelo: $modelo",
-        "Serial: $serial",
-        "Ubicación: $ubicacion",
-        "Contador: $contador",
-        "IP: $ip",
-        "Estado: $estado",
-        "Tipo de servicio: $tipoServicio",
-        "Observaciones: $observaciones",
-        "Usuario: $nombreUsuario"
+    val pdfRenderer = PdfRenderer(ParcelFileDescriptor.open(fileAsset, ParcelFileDescriptor.MODE_READ_ONLY))
+    val page = pdfRenderer.openPage(0)
+
+    val plantillaBitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+    page.render(plantillaBitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+    page.close()
+    pdfRenderer.close()
+
+    // Crear nuevo PDF con la imagen de fondo y los datos encima
+    val documento = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(plantillaBitmap.width, plantillaBitmap.height, 1).create()
+    val nuevaPagina = documento.startPage(pageInfo)
+    val canvas = nuevaPagina.canvas
+
+    // Fondo de la plantilla
+    canvas.drawBitmap(plantillaBitmap, 0f, 0f, null)
+
+    val paint = Paint()
+        paint.color = android.graphics.Color.BLACK
+        paint.textSize = 12f
+
+
+    // Coordenadas de campos (¡ajústalas manualmente según la plantilla!)
+    canvas.drawText(formulario.nombreTecnico, 160f, 155f, paint)
+    canvas.drawText(formulario.ccTecnico, 160f, 175f, paint)
+
+    // Hora, cliente, ciudad
+    canvas.drawText(formulario.fecha, 490f, 133f, paint)
+    canvas.drawText(formulario.clienteSeleccionado, 478f, 155f, paint)
+    canvas.drawText(formulario.ciudadSeleccionada, 478f, 180f, paint)
+    canvas.drawText(formulario.sucursal, 478f, 205f, paint)
+    canvas.drawText(formulario.caso, 478f, 250f, paint)
+    canvas.drawText(formulario.horaInicio, 478f, 275f, paint)
+    canvas.drawText(formulario.horaFin, 478f, 300f, paint)
+
+    canvas.drawText(formulario.tipoDispositivo, 225f, 230f, paint)
+    canvas.drawText(formulario.marca, 225f, 243f, paint)
+    canvas.drawText(formulario.modelo, 225f, 259f, paint)
+    canvas.drawText(formulario.serial, 225f, 272f, paint)
+    canvas.drawText(formulario.ubicacion, 225f, 285f, paint)
+    canvas.drawText(formulario.contador, 225f, 300f, paint)
+    canvas.drawText(formulario.estado, 225f, 322f, paint)
+    canvas.drawText(formulario.ip, 225f, 340f, paint)
+
+
+    canvas.drawText(formulario.tipoServicio, 182f, 405f, paint)
+    canvas.drawText(formulario.observaciones, 88f, 488f, paint)
+
+    canvas.drawText(formulario.nombreUsuario, 90f, 670f, paint)
+
+
+    // Firmas (ajusta posición)
+    firmaUsuario?.let {
+        val firmaEscalada = Bitmap.createScaledBitmap(it, 150, 60, true)
+        canvas.drawBitmap(firmaEscalada, 220f, 620f, null)
+    }
+
+    firmaFuncionario?.let {
+        val firmaEscalada = Bitmap.createScaledBitmap(it, 150, 60, true)
+        canvas.drawBitmap(firmaEscalada, 350f, 650f, null)
+    }
+
+    documento.finishPage(nuevaPagina)
+
+    // Guardar PDF final
+    val archivoFinal = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "formulario_final_${formulario.serial}_${formulario.ubicacion}.pdf")
+    documento.writeTo(FileOutputStream(archivoFinal))
+    documento.close()
+
+    return archivoFinal
+}
+
+fun abrirPDF(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider", // ← Esto debe coincidir con tu AndroidManifest
+        file
     )
 
-    var y = 50
-    for (line in dataList) {
-        canvas.drawText(line, 40f, y.toFloat(), paint)
-        y += 25
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/pdf")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-
-    // Dibujar firmas si existen
-    val firmaWidth = 200
-    val firmaHeight = 100
-
-    firmaUsuarioBitmap?.let { bitmap ->
-        val scaledFirma = Bitmap.createScaledBitmap(bitmap, firmaWidth, firmaHeight, true)
-        canvas.drawText("Firma Usuario:", 40f, y + 30f, paint)
-        canvas.drawBitmap(scaledFirma, 40f, (y + 40).toFloat(), null)
-    }
-
-    firmaFuncionarioBitmap?.let { bitmap ->
-        val scaledFirma = Bitmap.createScaledBitmap(bitmap, firmaWidth, firmaHeight, true)
-        canvas.drawText("Firma Funcionario:", 300f, y + 30f, paint)
-        canvas.drawBitmap(scaledFirma, 300f, (y + 40).toFloat(), null)
-    }
-
-    pdfDocument.finishPage(page)
-
-    // Guardar el PDF
-    val file = File(
-        context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
-        "Formulario_${System.currentTimeMillis()}.pdf"
-    )
 
     try {
-        pdfDocument.writeTo(FileOutputStream(file))
-        Toast.makeText(context, "PDF guardado en:\n${file.absolutePath}", Toast.LENGTH_LONG).show()
-    } catch (e: Exception) {
-        e.printStackTrace()
-        Toast.makeText(context, "Error al guardar PDF: ${e.message}", Toast.LENGTH_LONG).show()
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No hay aplicación para abrir PDF", Toast.LENGTH_LONG).show()
     }
-
-    pdfDocument.close()
 }
+
+
 
 
 
