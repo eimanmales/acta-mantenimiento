@@ -688,6 +688,7 @@ fun PantallaFormulario() {
                                         )
 
                                         abrirPDF(context, archivoPDF)
+                                        enviarPDFPorCorreo(context, archivoPDF, "eiman.males@carvajal.com")
                                     }
                                     .addOnFailureListener {
                                         Toast.makeText(
@@ -1458,6 +1459,24 @@ fun abrirPDF(context: Context, file: File) {
 }
 
 
+fun enviarPDFPorCorreo(context: Context, archivoPDF: File, destinatario: String) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        archivoPDF
+    )
+
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(destinatario))
+        putExtra(Intent.EXTRA_SUBJECT, "Formulario de Mantenimiento")
+        putExtra(Intent.EXTRA_TEXT, "Adjunto encontrarás el formulario en formato PDF.")
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    context.startActivity(Intent.createChooser(intent, "Enviar PDF por correo"))
+}
 
 
 
